@@ -1,0 +1,7 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/zsttrxnv/diginews.cortigatech.com
+    - /bin/mkdir -p $DEPLOYPATH
+    - /usr/bin/rsync -av --exclude='.git' --exclude='.cpanel.yml' ./ $DEPLOYPATH
+    - /usr/bin/pip3 install -r $DEPLOYPATH/requirements.txt --target $DEPLOYPATH
