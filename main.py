@@ -1,24 +1,18 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask
+from flask_cors import CORS
 from routers import news
 
-app = FastAPI(title="DigiNews API", version="1.0.0")
+app = Flask(__name__)
+CORS(app)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(news.router, prefix="/api/v1")
+app.register_blueprint(news.bp, url_prefix="/api/v1")
 
 
-@app.get("/")
+@app.route("/")
 def root():
     return {"message": "DigiNews API is running"}
 
 
-@app.get("/health")
+@app.route("/health")
 def health():
     return {"status": "ok"}

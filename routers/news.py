@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query
-from models.news import NewsArticle, NewsResponse
+from flask import Blueprint, jsonify, request, abort
+from models.news import NewsArticle
 from datetime import datetime
 
-router = APIRouter(prefix="/news", tags=["news"])
+bp = Blueprint("news", __name__, url_prefix="/news")
 
 SAMPLE_ARTICLES = [
     NewsArticle(
@@ -56,28 +56,33 @@ SAMPLE_ARTICLES = [
 ]
 
 
-@router.get("/", response_model=NewsResponse)
-def get_news(
-    category: str = Query(default=None, description="Filter by category"),
-    limit: int = Query(default=10, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-):
+@bp.route("/")
+def get_news():
+    category = request.args.get("category")
+    limit = min(max(int(request.args.get("limit", 10)), 1), 100)
+    offset = max(int(request.args.get("offset", 0)), 0)
+
     articles = SAMPLE_ARTICLES
     if category:
         articles = [a for a in articles if a.category == category]
+
     paginated = articles[offset : offset + limit]
-    return NewsResponse(status="ok", total=len(articles), articles=paginated)
+    return jsonify({
+        "status": "ok",
+        "total": len(articles),
+        "articles": [a.model_dump(mode="json") for a in paginated],
+    })
 
 
-@router.get("/{article_id}", response_model=NewsArticle)
-def get_article(article_id: int):
+@bp.route("/categories/list")
+def get_categories():
+    categories = sorted({a.category for a in SAMPLE_ARTICLES})
+    return jsonify({"categories": categories})
+
+
+@bp.route("/<int:article_id>")
+def get_article(article_id):
     article = next((a for a in SAMPLE_ARTICLES if a.id == article_id), None)
     if not article:
-        raise HTTPException(status_code=404, detail="Article not found")
-    return article
-
-
-@router.get("/categories/list")
-def get_categories():
-    categories = list({a.category for a in SAMPLE_ARTICLES})
-    return {"categories": sorted(categories)}
+        abort(404, description="Article not found")
+    return jsonify(article.model_dump(mode="json"))
