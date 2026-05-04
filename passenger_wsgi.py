@@ -1,10 +1,3 @@
-import sys
-import os
-
-APPDIR = os.path.dirname(__file__)
-sys.path.insert(0, APPDIR)
-
-from a2wsgi import ASGIMiddleware
-from main import app
-
-application = ASGIMiddleware(app)
+def application(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/plain')])
+    return [b'Passenger is working!']
