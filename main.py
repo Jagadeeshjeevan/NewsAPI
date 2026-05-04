@@ -5,7 +5,7 @@ from routers import news
 app = Flask(__name__)
 CORS(app)
 
-app.register_blueprint(news.bp, url_prefix="/api/v1")
+app.register_blueprint(news.bp, url_prefix="/api/v1/news")
 
 
 @app.route("/")
