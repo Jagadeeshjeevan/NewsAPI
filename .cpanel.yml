@@ -4,4 +4,4 @@ deployment:
     - export DEPLOYPATH=/home/zsttrxnv/diginews.cortigatech.com
     - /bin/mkdir -p $DEPLOYPATH
     - /usr/bin/rsync -av --exclude='.git' --exclude='.cpanel.yml' ./ $DEPLOYPATH
-    - /home/zst/virtualenv/diginews.cortigatech.com/3.10/bin/pip install -r $DEPLOYPATH/requirements.txt
+    - /home/zsttrxnv/virtualenv/diginews.cortigatech.com/3.10/bin/pip install -r $DEPLOYPATH/requirements.txt
