@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     IMAGE_STORAGE_PATH: str = "/storage/images"
     BASE_URL: str = "http://localhost:8000"
 
+    LOG_ENABLED: bool = False
+    LOG_PATH: str = "/home/zsttrxnv/logs/diginews_app.log"
+    LOG_LEVEL: str = "ERROR"
+
     class Config:
         env_file = ".env"
         extra = "ignore"
