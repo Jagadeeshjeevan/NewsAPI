@@ -4,7 +4,7 @@ from flask import Flask
 from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
 from app.core.database import close_db
-from app.routers import auth, users, news, feeds, audio, admin, subscriptions, reference
+from app.routers import auth, users, news, feeds, audio, admin, subscriptions, reference, docs
 
 
 class JsonProvider(DefaultJSONProvider):
@@ -31,6 +31,7 @@ app.register_blueprint(audio.bp,         url_prefix="/audio")
 app.register_blueprint(admin.bp,         url_prefix="/admin")
 app.register_blueprint(subscriptions.bp, url_prefix="/subscriptions")
 app.register_blueprint(reference.bp)
+app.register_blueprint(docs.bp)
 
 
 @app.get("/health")
