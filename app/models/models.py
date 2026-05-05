@@ -42,6 +42,7 @@ class User(Base):
     email = Column(String(200), unique=True)
     name = Column(String(100))
     profile_pic = Column(String(500))
+    password_hash = Column(String(255))
     is_admin = Column(TINYINT, default=0)
     is_active = Column(TINYINT, default=1)
     preferred_lang = Column(String(10), default="te")
