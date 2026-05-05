@@ -7,9 +7,9 @@ from app.core import redis as cache_store
 WINDOW_TTL = {"latest": 30, "today": 120, "yesterday": 600, "older": 600}
 
 
-def _get_window_bounds(user: User, window: str) -> tuple[datetime, datetime]:
+def _get_window_bounds(user: User | None, window: str) -> tuple[datetime, datetime]:
     now = datetime.utcnow()
-    anchor = user.anchor_time or now
+    anchor = (user.anchor_time if user else None) or now
     bounds = {
         "latest":    (now - timedelta(hours=2), now),
         "today":     (anchor - timedelta(hours=24), anchor),
@@ -19,12 +19,12 @@ def _get_window_bounds(user: User, window: str) -> tuple[datetime, datetime]:
     return bounds[window]
 
 
-def get_feed(db: Session, user: User, language: str, window: str, last_id: int | None,
+def get_feed(db: Session, user: User | None, language: str, window: str, last_id: int | None,
              after_id: int | None, page: int, limit: int, category: str | None,
              city: str | None, district: str | None, state: str | None,
              national: bool | None, breaking: bool | None) -> dict:
 
-    if not user.anchor_time:
+    if user and not user.anchor_time:
         user.anchor_time = datetime.utcnow()
         db.commit()
 

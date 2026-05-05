@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, g
 from app.core.database import get_db
-from app.dependencies.auth import auth_required, registered_required
+from app.dependencies.auth import _get_current_user, registered_required
 from app.models.models import News, NewsReaction, Bookmark, UserReadHistory
 from app.services import feed_service
 from app.schemas.schemas import ReactRequest
@@ -8,9 +8,13 @@ from app.schemas.schemas import ReactRequest
 bp = Blueprint("feeds", __name__)
 
 
+def _optional_user():
+    user, _ = _get_current_user()
+    return user
+
+
 # API 26: GET /feeds/
 @bp.get("/")
-@auth_required
 def get_feed():
     db = get_db()
     args = request.args
@@ -25,7 +29,7 @@ def get_feed():
     breaking = args.get("breaking", type=lambda v: v.lower() == "true")
 
     result = feed_service.get_feed(
-        db, g.current_user,
+        db, _optional_user(),
         language=language,
         window=args.get("window", "today"),
         last_id=last_id,
@@ -44,7 +48,6 @@ def get_feed():
 
 # API 28: GET /feeds/trending
 @bp.get("/trending")
-@auth_required
 def get_trending():
     db = get_db()
     language = request.args.get("language")
@@ -61,7 +64,6 @@ def get_trending():
 
 # API 29: GET /feeds/breaking
 @bp.get("/breaking")
-@auth_required
 def get_breaking():
     db = get_db()
     language = request.args.get("language")
@@ -72,7 +74,6 @@ def get_breaking():
 
 # API 30: GET /feeds/search
 @bp.get("/search")
-@auth_required
 def search():
     db = get_db()
     q = request.args.get("q", "")
@@ -109,15 +110,14 @@ def get_bookmarks():
 
 # API 27: GET /feeds/<id>
 @bp.get("/<int:news_id>")
-@auth_required
 def get_article(news_id):
     db = get_db()
     article = feed_service.get_article(db, news_id)
     if not article:
         return jsonify({"detail": "Article not found"}), 404
     db.query(News).filter(News.id == news_id).update({"view_count": News.view_count + 1})
-    user = g.current_user
-    if user.user_type == "registered":
+    user = _optional_user()
+    if user and user.user_type == "registered":
         existing = db.query(UserReadHistory).filter(
             UserReadHistory.user_id == user.id, UserReadHistory.news_id == news_id
         ).first()
@@ -129,12 +129,11 @@ def get_article(news_id):
 
 # API 31: POST /feeds/<id>/read
 @bp.post("/<int:news_id>/read")
-@auth_required
 def mark_read(news_id):
     db = get_db()
     db.query(News).filter(News.id == news_id).update({"view_count": News.view_count + 1})
-    user = g.current_user
-    if user.user_type == "registered":
+    user = _optional_user()
+    if user and user.user_type == "registered":
         existing = db.query(UserReadHistory).filter(
             UserReadHistory.user_id == user.id, UserReadHistory.news_id == news_id
         ).first()
@@ -146,7 +145,6 @@ def mark_read(news_id):
 
 # API 32: POST /feeds/<id>/share
 @bp.post("/<int:news_id>/share")
-@auth_required
 def share(news_id):
     db = get_db()
     db.query(News).filter(News.id == news_id).update({"share_count": News.share_count + 1})
@@ -207,16 +205,16 @@ def react(news_id):
 
 # API 34: GET /feeds/<id>/reactions
 @bp.get("/<int:news_id>/reactions")
-@auth_required
 def get_reactions(news_id):
     db = get_db()
     news = db.query(News).filter(News.id == news_id).first()
     if not news:
         return jsonify({"detail": "Article not found"}), 404
     my_reaction = None
-    if g.current_user.user_type == "registered":
+    user = _optional_user()
+    if user and user.user_type == "registered":
         r = db.query(NewsReaction).filter(
-            NewsReaction.user_id == g.current_user.id, NewsReaction.news_id == news_id
+            NewsReaction.user_id == user.id, NewsReaction.news_id == news_id
         ).first()
         my_reaction = r.reaction if r else None
     return jsonify({"like_count": news.like_count, "dislike_count": news.dislike_count, "my_reaction": my_reaction})
