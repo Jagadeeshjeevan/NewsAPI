@@ -32,6 +32,7 @@ def submit_news():
         source="manual",
         original_text=f"{body.title}\n\n{body.content}",
         original_lang=lang,
+        image_url=body.image_url,
         category_id=cat.id,
         category_code=cat.code,
         state=body.state,

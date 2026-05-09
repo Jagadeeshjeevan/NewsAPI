@@ -154,10 +154,10 @@ class NewsSubmitRequest(BaseModel):
     title: str
     content: str
     category_code: str
+    image_url: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
     city: Optional[str] = None
-    image_url: Optional[str] = None
 
 class NewsCard(BaseModel):
     id: int
