@@ -1,6 +1,4 @@
 import os
-import feedparser
-import hashlib
 from datetime import datetime
 from app.core.celery_app import celery_app
 from app.core.config import settings
@@ -147,37 +145,3 @@ def task_send_notifications(raw_id: int):
         db.close()
 
 
-@celery_app.task(name="app.services.ai_service.task_rss_fetch")
-def task_rss_fetch():
-    from app.core.database import SessionLocal
-    from app.models.models import NewsRaw
-
-    RSS_FEEDS = [
-        "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
-        "https://www.thehindu.com/news/national/feeder/default.rss",
-        "https://www.ndtv.com/rss/top-stories",
-    ]
-
-    db = SessionLocal()
-    try:
-        for feed_url in RSS_FEEDS:
-            try:
-                feed = feedparser.parse(feed_url)
-                for entry in feed.entries[:20]:
-                    url_hash = hashlib.md5(entry.get("link", "").encode()).hexdigest()
-                    existing = db.query(NewsRaw).filter(NewsRaw.source_url == url_hash).first()
-                    if existing:
-                        continue
-                    raw = NewsRaw(
-                        source="rss",
-                        source_url=url_hash,
-                        original_text=entry.get("summary", entry.get("title", "")),
-                        original_lang="en",
-                        status="pending",
-                    )
-                    db.add(raw)
-                db.commit()
-            except Exception:
-                db.rollback()
-    finally:
-        db.close()

@@ -15,12 +15,6 @@ if settings.REDIS_ENABLED:
         result_serializer="json",
         accept_content=["json"],
         timezone="Asia/Kolkata",
-        beat_schedule={
-            "rss-fetch-every-15-min": {
-                "task": "app.services.ai_service.task_rss_fetch",
-                "schedule": 900.0,
-            }
-        },
     )
 else:
     class _DummyCelery:
