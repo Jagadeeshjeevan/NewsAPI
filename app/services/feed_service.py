@@ -11,7 +11,7 @@ def _get_window_bounds(user: User | None, window: str) -> tuple[datetime, dateti
     now = datetime.utcnow()
     anchor = (user.anchor_time if user else None) or now
     bounds = {
-        "latest":    (now - timedelta(hours=2), now),
+        "latest":    (now - timedelta(hours=24), now),
         "today":     (anchor - timedelta(hours=24), anchor),
         "yesterday": (anchor - timedelta(hours=48), anchor - timedelta(hours=24)),
         "older":     (datetime(2020, 1, 1), anchor - timedelta(hours=48)),
@@ -37,7 +37,7 @@ def get_feed(db: Session, user: User | None, language: str, window: str, last_id
 
     q = db.query(News, Category, Language).outerjoin(
         Category, News.category_code == Category.code
-    ).join(Language, News.language_code == Language.code).filter(
+    ).outerjoin(Language, News.language_code == Language.code).filter(
         News.language_code == language,
         News.published_at >= window_start,
         News.published_at <= window_end,
@@ -90,7 +90,7 @@ def get_feed(db: Session, user: User | None, language: str, window: str, last_id
 def get_article(db: Session, news_id: int) -> dict | None:
     row = db.query(News, Category, Language).outerjoin(
         Category, News.category_code == Category.code
-    ).join(Language, News.language_code == Language.code).filter(News.id == news_id).first()
+    ).outerjoin(Language, News.language_code == Language.code).filter(News.id == news_id).first()
     if not row:
         return None
     n, cat, lang = row
@@ -114,7 +114,7 @@ def get_trending(db: Session, language: str, city: str | None, limit: int, hours
     since = datetime.utcnow() - timedelta(hours=hours)
     q = db.query(News, Category, Language).outerjoin(
         Category, News.category_code == Category.code
-    ).join(Language, News.language_code == Language.code).filter(
+    ).outerjoin(Language, News.language_code == Language.code).filter(
         News.language_code == language,
         News.published_at >= since,
     )
@@ -127,7 +127,7 @@ def get_trending(db: Session, language: str, city: str | None, limit: int, hours
 def get_breaking(db: Session, language: str, limit: int) -> list:
     rows = db.query(News, Category, Language).outerjoin(
         Category, News.category_code == Category.code
-    ).join(Language, News.language_code == Language.code).filter(
+    ).outerjoin(Language, News.language_code == Language.code).filter(
         News.language_code == language,
         News.is_breaking == 1,
     ).order_by(News.published_at.desc()).limit(limit).all()
@@ -138,7 +138,7 @@ def search_news(db: Session, q: str, language: str, category: str | None, page: 
     since = datetime.utcnow() - timedelta(days=30)
     base = db.query(News, Category, Language).outerjoin(
         Category, News.category_code == Category.code
-    ).join(Language, News.language_code == Language.code).filter(
+    ).outerjoin(Language, News.language_code == Language.code).filter(
         News.language_code == language,
         News.published_at >= since,
         text("MATCH(news.title, news.content) AGAINST(:q IN BOOLEAN MODE)").bindparams(q=q),
