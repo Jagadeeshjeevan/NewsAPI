@@ -1,14 +1,42 @@
+import hashlib
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from jose import JWTError
 from app.core.database import get_db
 from app.core.security import create_access_token, decode_token, hash_token
 from app.dependencies.auth import auth_required
-from app.models.models import RefreshToken
-from app.schemas.schemas import GuestLoginRequest, GoogleLoginRequest, RefreshTokenRequest, LogoutRequest
+from app.models.models import RefreshToken, User
+from app.schemas.schemas import AdminLoginRequest, GuestLoginRequest, GoogleLoginRequest, RefreshTokenRequest, LogoutRequest
 from app.services import auth_service
 
 bp = Blueprint("auth", __name__)
+
+
+# API 0: POST /auth/admin-login
+@bp.post("/admin-login")
+def admin_login():
+    data = request.get_json(force=True) or {}
+    try:
+        body = AdminLoginRequest(**data)
+    except Exception as e:
+        return jsonify({"detail": str(e)}), 422
+
+    db = get_db()
+    pw_hash = hashlib.sha256(body.password.encode()).hexdigest()
+    user = db.query(User).filter(
+        User.email == body.email.strip().lower(),
+        User.password_hash == pw_hash,
+        User.is_admin == 1,
+        User.is_active == 1,
+    ).first()
+    if not user:
+        return jsonify({"detail": "Invalid credentials or not an admin"}), 401
+
+    user.last_login = datetime.utcnow()
+    db.commit()
+    token = create_access_token(user.id, user.user_type)
+    return jsonify({"access_token": token, "token_type": "bearer",
+                    "user_id": user.id, "name": user.name or user.email})
 
 
 # API 1: POST /auth/guest

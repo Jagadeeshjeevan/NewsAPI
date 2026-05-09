@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DigiNews Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    select option{background:#1f2937;color:#f9fafb}
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen font-sans">
+
+<!-- ══════════════════ LOGIN ══════════════════ -->
+<div id="loginScreen" class="flex items-center justify-center min-h-screen px-4">
+  <div class="bg-gray-900 rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-gray-800">
+    <div class="text-center mb-8">
+      <div class="text-3xl font-bold text-white">DigiNews</div>
+      <div class="text-gray-400 text-sm mt-1">Admin Panel</div>
+    </div>
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Email</label>
+        <input id="loginEmail" type="email" required autocomplete="email"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+          placeholder="admin@example.com"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Password</label>
+        <input id="loginPassword" type="password" required
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+          placeholder="••••••••"/>
+      </div>
+      <p id="loginError" class="text-red-400 text-xs hidden"></p>
+      <button type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg text-sm transition">
+        Sign In
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════════ DASHBOARD ══════════════════ -->
+<div id="dashboard" class="hidden flex flex-col min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
+    <div class="flex items-center gap-3">
+      <span class="text-lg font-bold">DigiNews</span>
+      <span class="text-xs bg-blue-600 px-2 py-0.5 rounded-full">Admin</span>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <span id="adminName" class="text-gray-400"></span>
+      <button onclick="logout()" class="text-red-400 hover:text-red-300 transition">Logout</button>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="grid grid-cols-4 gap-px bg-gray-800 border-b border-gray-800">
+    <div class="bg-gray-900 text-center py-3">
+      <div id="sPending" class="text-xl font-bold text-yellow-400">—</div>
+      <div class="text-xs text-gray-500 mt-0.5">Pending</div>
+    </div>
+    <div class="bg-gray-900 text-center py-3">
+      <div id="sPublished" class="text-xl font-bold text-green-400">—</div>
+      <div class="text-xs text-gray-500 mt-0.5">Published</div>
+    </div>
+    <div class="bg-gray-900 text-center py-3">
+      <div id="sGuests" class="text-xl font-bold text-blue-400">—</div>
+      <div class="text-xs text-gray-500 mt-0.5">Guests</div>
+    </div>
+    <div class="bg-gray-900 text-center py-3">
+      <div id="sReg" class="text-xl font-bold text-purple-400">—</div>
+      <div class="text-xs text-gray-500 mt-0.5">Registered</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex border-b border-gray-800 bg-gray-900 px-4">
+    <button onclick="switchTab('queue')" id="tabQueue"
+      class="px-5 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-400 -mb-px">
+      Pending Queue
+    </button>
+    <button onclick="switchTab('published')" id="tabPublished"
+      class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white -mb-px transition">
+      Published
+    </button>
+  </div>
+
+  <!-- ── Queue Tab ── -->
+  <div id="paneQueue" class="flex-1 p-5">
+    <div class="flex items-center gap-3 mb-4">
+      <select id="filterCat" onchange="loadQueue(1)"
+        class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+        <option value="">All Categories</option>
+      </select>
+      <button onclick="loadQueue(currentPage)"
+        class="text-xs text-gray-400 hover:text-white px-3 py-2 bg-gray-800 rounded-lg transition">
+        Refresh
+      </button>
+      <span id="queueCount" class="text-xs text-gray-500 ml-auto"></span>
+    </div>
+
+    <div class="rounded-xl border border-gray-800 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800/80 text-gray-400 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 text-left w-10">#</th>
+            <th class="px-4 py-3 text-left">Article</th>
+            <th class="px-4 py-3 text-left w-28">Category</th>
+            <th class="px-4 py-3 text-left w-28">State</th>
+            <th class="px-4 py-3 text-left w-20">Score</th>
+            <th class="px-4 py-3 text-left w-28">Date</th>
+            <th class="px-4 py-3 text-center w-36">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="queueBody" class="divide-y divide-gray-800/60">
+          <tr><td colspan="7" class="px-4 py-10 text-center text-gray-500 text-sm">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex items-center justify-between mt-4">
+      <button id="qPrev" onclick="loadQueue(currentPage-1)"
+        class="px-4 py-2 text-xs bg-gray-800 hover:bg-gray-700 rounded-lg transition disabled:opacity-30">
+        ← Previous
+      </button>
+      <span id="qPageInfo" class="text-xs text-gray-500"></span>
+      <button id="qNext" onclick="loadQueue(currentPage+1)"
+        class="px-4 py-2 text-xs bg-gray-800 hover:bg-gray-700 rounded-lg transition disabled:opacity-30">
+        Next →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Published Tab ── -->
+  <div id="panePublished" class="flex-1 p-5 hidden">
+    <div class="flex items-center gap-3 mb-4">
+      <button onclick="loadPublished(1)"
+        class="text-xs text-gray-400 hover:text-white px-3 py-2 bg-gray-800 rounded-lg transition">
+        Refresh
+      </button>
+      <span id="pubCount" class="text-xs text-gray-500 ml-auto"></span>
+    </div>
+
+    <div class="rounded-xl border border-gray-800 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800/80 text-gray-400 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 text-left w-10">#</th>
+            <th class="px-4 py-3 text-left">Title</th>
+            <th class="px-4 py-3 text-left w-20">Lang</th>
+            <th class="px-4 py-3 text-left w-28">Category</th>
+            <th class="px-4 py-3 text-left w-28">State</th>
+            <th class="px-4 py-3 text-left w-28">Published</th>
+            <th class="px-4 py-3 text-center w-24">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pubBody" class="divide-y divide-gray-800/60">
+          <tr><td colspan="7" class="px-4 py-10 text-center text-gray-500 text-sm">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex items-center justify-between mt-4">
+      <button id="pPrev" onclick="loadPublished(currentPubPage-1)"
+        class="px-4 py-2 text-xs bg-gray-800 hover:bg-gray-700 rounded-lg transition disabled:opacity-30">
+        ← Previous
+      </button>
+      <span id="pPageInfo" class="text-xs text-gray-500"></span>
+      <button id="pNext" onclick="loadPublished(currentPubPage+1)"
+        class="px-4 py-2 text-xs bg-gray-800 hover:bg-gray-700 rounded-lg transition disabled:opacity-30">
+        Next →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ PREVIEW MODAL ══════════════════ -->
+<div id="previewModal" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4"
+  onclick="if(event.target===this)closePreview()">
+  <div class="bg-gray-900 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-700 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      <h2 class="font-semibold text-white">Article Preview</h2>
+      <button onclick="closePreview()" class="text-gray-400 hover:text-white text-2xl leading-none">×</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-6 space-y-4 text-sm">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="pvCat" class="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full"></span>
+        <span id="pvState" class="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full"></span>
+        <span id="pvSrc" class="text-gray-500 text-xs"></span>
+      </div>
+      <div id="pvSummaryBox" class="hidden bg-blue-900/30 border border-blue-800/40 rounded-lg p-3">
+        <div class="text-xs text-blue-400 font-medium mb-1">AI Summary</div>
+        <div id="pvSummary" class="text-blue-200 text-sm"></div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-500 mb-2">Original Text</div>
+        <div id="pvText" class="text-gray-300 leading-relaxed whitespace-pre-wrap"></div>
+      </div>
+      <div id="pvLinkBox" class="hidden">
+        <a id="pvLink" href="#" target="_blank"
+          class="text-xs text-blue-400 hover:underline break-all"></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ APPROVE MODAL ══════════════════ -->
+<div id="approveModal" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4"
+  onclick="if(event.target===this)closeApprove()">
+  <div class="bg-gray-900 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      <h2 class="font-semibold text-white">Approve Article</h2>
+      <button onclick="closeApprove()" class="text-gray-400 hover:text-white text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">State</label>
+        <select id="apState"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500">
+          <option value="">— Select State —</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">District</label>
+          <input id="apDistrict" type="text" placeholder="optional"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">City</label>
+          <input id="apCity" type="text" placeholder="optional"
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500"/>
+        </div>
+      </div>
+      <div class="flex items-center gap-6 pt-1">
+        <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <input type="checkbox" id="apBreaking" class="w-4 h-4 rounded accent-red-500"/>
+          Breaking News
+        </label>
+        <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <input type="checkbox" id="apAiRewrite" checked class="w-4 h-4 rounded accent-blue-500"/>
+          AI Rewrite
+        </label>
+      </div>
+      <p id="apError" class="text-red-400 text-xs hidden"></p>
+    </div>
+    <div class="flex gap-3 px-6 pb-6">
+      <button onclick="closeApprove()"
+        class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition">
+        Cancel
+      </button>
+      <button id="apSubmit" onclick="submitApprove()"
+        class="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition">
+        Approve & Publish
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ REJECT MODAL ══════════════════ -->
+<div id="rejectModal" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4"
+  onclick="if(event.target===this)closeReject()">
+  <div class="bg-gray-900 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      <h2 class="font-semibold text-white">Reject Article</h2>
+      <button onclick="closeReject()" class="text-gray-400 hover:text-white text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">State <span class="text-gray-600">(optional)</span></label>
+        <select id="rjState"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500">
+          <option value="">— Select State —</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Rejection Reason <span class="text-gray-600">(optional)</span></label>
+        <textarea id="rjReason" rows="3" placeholder="Why is this being rejected?"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500 resize-none"></textarea>
+      </div>
+      <p id="rjError" class="text-red-400 text-xs hidden"></p>
+    </div>
+    <div class="flex gap-3 px-6 pb-6">
+      <button onclick="closeReject()"
+        class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition">
+        Cancel
+      </button>
+      <button id="rjSubmit" onclick="submitReject()"
+        class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition">
+        Reject
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TOAST ══════════════════ -->
+<div id="toast"
+  class="hidden fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl text-sm shadow-2xl font-medium transition-all">
+</div>
+
+<script>
+const API   = 'https://diginews.cortigatech.com';
+const LIMIT = 20;
+
+let token        = localStorage.getItem('dn_token');
+let adminName    = localStorage.getItem('dn_name') || '';
+let currentPage    = 1;  let totalPages    = 1;
+let currentPubPage = 1;  let totalPubPages = 1;
+let activeModalId  = null;
+
+// ── Indian States ─────────────────────────────────────────────────────
+const STATES = [
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
+  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
+  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+  "Andaman and Nicobar Islands","Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu","Delhi",
+  "Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry",
+];
+
+// ── Init ──────────────────────────────────────────────────────────────
+window.onload = () => {
+  populateStateDrop('apState');
+  populateStateDrop('rjState');
+  if (token) showDashboard();
+};
+
+function populateStateDrop(id) {
+  const sel = document.getElementById(id);
+  STATES.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    sel.appendChild(o);
+  });
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl    = document.getElementById('loginError');
+  errEl.classList.add('hidden');
+  try {
+    const res  = await fetch(`${API}/auth/admin-login`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password}),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.detail || 'Login failed'; errEl.classList.remove('hidden'); return; }
+    token = data.access_token;
+    adminName = data.name || email;
+    localStorage.setItem('dn_token', token);
+    localStorage.setItem('dn_name', adminName);
+    showDashboard();
+  } catch { errEl.textContent = 'Network error'; errEl.classList.remove('hidden'); }
+});
+
+function logout() {
+  localStorage.removeItem('dn_token'); localStorage.removeItem('dn_name');
+  token = null;
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+// ── API helpers ───────────────────────────────────────────────────────
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: {'Authorization':`Bearer ${token}`} };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch(`${API}${path}`, opts);
+  if (res.status === 401 || res.status === 403) { logout(); throw new Error('Unauthorized'); }
+  return { ok: res.ok, status: res.status, data: await res.json() };
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('adminName').textContent = adminName;
+  loadStats(); loadCategories(); loadQueue(1);
+}
+
+async function loadStats() {
+  try {
+    const { data: d } = await api('/admin/analytics');
+    document.getElementById('sPending').textContent   = d.news?.pending ?? '—';
+    document.getElementById('sPublished').textContent = d.news?.total_published ?? '—';
+    document.getElementById('sGuests').textContent    = d.users?.total_guests ?? '—';
+    document.getElementById('sReg').textContent       = d.users?.total_registered ?? '—';
+  } catch {}
+}
+
+async function loadCategories() {
+  try {
+    const res  = await fetch(`${API}/categories`);
+    const data = await res.json();
+    const sel  = document.getElementById('filterCat');
+    (data.data || []).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.code;
+      o.textContent = (c.icon_emoji||'') + ' ' + c.name_english;
+      sel.appendChild(o);
+    });
+  } catch {}
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['queue','published'].forEach(t => {
+    const isActive = t === tab;
+    document.getElementById(`pane${cap(t)}`).classList.toggle('hidden', !isActive);
+    const btn = document.getElementById(`tab${cap(t)}`);
+    btn.classList.toggle('border-blue-500', isActive);
+    btn.classList.toggle('text-blue-400',   isActive);
+    btn.classList.toggle('border-transparent', !isActive);
+    btn.classList.toggle('text-gray-400',   !isActive);
+  });
+  if (tab === 'published') loadPublished(1);
+}
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+// ── Queue ─────────────────────────────────────────────────────────────
+async function loadQueue(page) {
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  const cat = document.getElementById('filterCat').value;
+  let url = `/admin/queue?page=${page}&limit=${LIMIT}`;
+  if (cat) url += `&category_code=${cat}`;
+  try {
+    const { data: d } = await api(url);
+    totalPages = Math.max(1, Math.ceil(d.total / LIMIT));
+    document.getElementById('queueCount').textContent = `${d.total} pending`;
+    document.getElementById('qPageInfo').textContent  = `Page ${page} / ${totalPages}`;
+    document.getElementById('qPrev').disabled = page <= 1;
+    document.getElementById('qNext').disabled = page >= totalPages;
+    renderQueue(d.data || []);
+  } catch { document.getElementById('queueBody').innerHTML = errRow(7, 'Failed to load queue'); }
+}
+
+function renderQueue(items) {
+  const tb = document.getElementById('queueBody');
+  if (!items.length) { tb.innerHTML = errRow(7, 'No pending articles'); return; }
+  tb.innerHTML = items.map(it => {
+    const title = (it.original_text||'').split('\n')[0].slice(0,80);
+    const score = it.ai_score != null ? it.ai_score.toFixed(2) : '—';
+    const sc    = it.ai_score >= 0.7 ? 'text-green-400' : it.ai_score >= 0.4 ? 'text-yellow-400' : 'text-gray-500';
+    const dt    = it.created_at ? new Date(it.created_at).toLocaleDateString('en-IN') : '—';
+    return `<tr class="hover:bg-gray-800/40 transition">
+      <td class="px-4 py-3 text-gray-500 text-xs">${it.id}</td>
+      <td class="px-4 py-3 max-w-xs">
+        <div class="text-gray-200 line-clamp-2 text-xs leading-relaxed">${esc(title)}</div>
+        ${it.ai_summary ? `<div class="text-gray-500 text-xs mt-0.5 line-clamp-1">${esc(it.ai_summary.slice(0,70))}</div>` : ''}
+      </td>
+      <td class="px-4 py-3"><span class="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">${it.category_code||'—'}</span></td>
+      <td class="px-4 py-3 text-gray-400 text-xs">${it.state||'—'}</td>
+      <td class="px-4 py-3 ${sc} font-mono text-xs">${score}</td>
+      <td class="px-4 py-3 text-gray-500 text-xs">${dt}</td>
+      <td class="px-4 py-3">
+        <div class="flex items-center justify-center gap-1.5">
+          <button onclick="openPreview(${it.id})"
+            class="px-2.5 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded-lg transition">View</button>
+          <button onclick="openApprove(${it.id}, '${esc(it.state||'')}')"
+            class="px-2.5 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded-lg transition">✓</button>
+          <button onclick="openReject(${it.id}, '${esc(it.state||'')}')"
+            class="px-2.5 py-1 text-xs bg-red-800 hover:bg-red-700 text-white rounded-lg transition">✗</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Published ─────────────────────────────────────────────────────────
+async function loadPublished(page) {
+  if (page < 1 || page > totalPubPages) return;
+  currentPubPage = page;
+  try {
+    const { data: d } = await api(`/admin/published?page=${page}&limit=${LIMIT}`);
+    totalPubPages = Math.max(1, Math.ceil(d.total / LIMIT));
+    document.getElementById('pubCount').textContent  = `${d.total} published`;
+    document.getElementById('pPageInfo').textContent = `Page ${page} / ${totalPubPages}`;
+    document.getElementById('pPrev').disabled = page <= 1;
+    document.getElementById('pNext').disabled = page >= totalPubPages;
+    renderPublished(d.data || []);
+  } catch { document.getElementById('pubBody').innerHTML = errRow(7, 'Failed to load'); }
+}
+
+function renderPublished(items) {
+  const tb = document.getElementById('pubBody');
+  if (!items.length) { tb.innerHTML = errRow(7, 'No published articles'); return; }
+  tb.innerHTML = items.map(it => {
+    const dt = it.published_at ? new Date(it.published_at).toLocaleDateString('en-IN') : '—';
+    const br = it.is_breaking ? `<span class="ml-1 text-xs bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded">BREAKING</span>` : '';
+    return `<tr class="hover:bg-gray-800/40 transition">
+      <td class="px-4 py-3 text-gray-500 text-xs">${it.id}</td>
+      <td class="px-4 py-3 max-w-xs">
+        <div class="text-gray-200 line-clamp-2 text-xs">${esc(it.title||'—')}${br}</div>
+      </td>
+      <td class="px-4 py-3 text-gray-400 text-xs">${it.language_code||'—'}</td>
+      <td class="px-4 py-3"><span class="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">${it.category_code||'—'}</span></td>
+      <td class="px-4 py-3 text-gray-400 text-xs">${it.city||it.state||'—'}</td>
+      <td class="px-4 py-3 text-gray-500 text-xs">${dt}</td>
+      <td class="px-4 py-3 text-center">
+        <button onclick="deleteNews(${it.id}, this)"
+          class="px-2.5 py-1 text-xs bg-red-900/40 hover:bg-red-700 text-red-400 hover:text-white rounded-lg transition">
+          Delete
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteNews(id, btn) {
+  if (!confirm('Unpublish this article?')) return;
+  btn.disabled = true;
+  const { ok } = await api(`/admin/published/${id}`, 'DELETE');
+  if (ok) { toast('Deleted', 'green'); loadPublished(currentPubPage); loadStats(); }
+  else    { btn.disabled = false; toast('Delete failed', 'red'); }
+}
+
+// ── Preview Modal ─────────────────────────────────────────────────────
+async function openPreview(id) {
+  document.getElementById('previewModal').classList.remove('hidden');
+  document.getElementById('pvText').textContent = 'Loading…';
+  document.getElementById('pvSummaryBox').classList.add('hidden');
+  document.getElementById('pvLinkBox').classList.add('hidden');
+  try {
+    const { data: d } = await api(`/admin/queue/${id}`);
+    document.getElementById('pvCat').textContent   = d.category_code || 'uncategorized';
+    document.getElementById('pvState').textContent = d.state || '—';
+    document.getElementById('pvSrc').textContent   = d.source || '';
+    document.getElementById('pvText').textContent  = d.original_text || '';
+    if (d.ai_summary) {
+      document.getElementById('pvSummary').textContent = d.ai_summary;
+      document.getElementById('pvSummaryBox').classList.remove('hidden');
+    }
+    if (d.source_url) {
+      const a = document.getElementById('pvLink');
+      a.href = d.source_url; a.textContent = d.source_url;
+      document.getElementById('pvLinkBox').classList.remove('hidden');
+    }
+  } catch { document.getElementById('pvText').textContent = 'Failed to load.'; }
+}
+function closePreview() { document.getElementById('previewModal').classList.add('hidden'); }
+
+// ── Approve Modal ─────────────────────────────────────────────────────
+function openApprove(id, currentState) {
+  activeModalId = id;
+  document.getElementById('apState').value    = currentState || '';
+  document.getElementById('apDistrict').value = '';
+  document.getElementById('apCity').value     = '';
+  document.getElementById('apBreaking').checked   = false;
+  document.getElementById('apAiRewrite').checked  = true;
+  document.getElementById('apError').classList.add('hidden');
+  document.getElementById('apSubmit').disabled = false;
+  document.getElementById('apSubmit').textContent = 'Approve & Publish';
+  document.getElementById('approveModal').classList.remove('hidden');
+}
+function closeApprove() { document.getElementById('approveModal').classList.add('hidden'); activeModalId = null; }
+
+async function submitApprove() {
+  if (!activeModalId) return;
+  const btn = document.getElementById('apSubmit');
+  btn.disabled = true; btn.textContent = 'Approving…';
+  const body = {
+    is_breaking:    document.getElementById('apBreaking').checked,
+    use_ai_rewrite: document.getElementById('apAiRewrite').checked,
+    state:          document.getElementById('apState').value    || null,
+    district:       document.getElementById('apDistrict').value || null,
+    city:           document.getElementById('apCity').value     || null,
+  };
+  try {
+    const { ok, data } = await api(`/admin/queue/${activeModalId}/approve`, 'POST', body);
+    if (ok) {
+      closeApprove(); toast('Approved — processing started', 'green');
+      loadQueue(currentPage); loadStats();
+    } else {
+      document.getElementById('apError').textContent = data.detail || 'Approve failed';
+      document.getElementById('apError').classList.remove('hidden');
+      btn.disabled = false; btn.textContent = 'Approve & Publish';
+    }
+  } catch { btn.disabled = false; btn.textContent = 'Approve & Publish'; }
+}
+
+// ── Reject Modal ──────────────────────────────────────────────────────
+function openReject(id, currentState) {
+  activeModalId = id;
+  document.getElementById('rjState').value  = currentState || '';
+  document.getElementById('rjReason').value = '';
+  document.getElementById('rjError').classList.add('hidden');
+  document.getElementById('rjSubmit').disabled = false;
+  document.getElementById('rjSubmit').textContent = 'Reject';
+  document.getElementById('rejectModal').classList.remove('hidden');
+}
+function closeReject() { document.getElementById('rejectModal').classList.add('hidden'); activeModalId = null; }
+
+async function submitReject() {
+  if (!activeModalId) return;
+  const btn = document.getElementById('rjSubmit');
+  btn.disabled = true; btn.textContent = 'Rejecting…';
+  const body = {
+    reason: document.getElementById('rjReason').value.trim() || null,
+    state:  document.getElementById('rjState').value || null,
+  };
+  try {
+    const { ok, data } = await api(`/admin/queue/${activeModalId}/reject`, 'POST', body);
+    if (ok) {
+      closeReject(); toast('Article rejected', 'gray');
+      loadQueue(currentPage); loadStats();
+    } else {
+      document.getElementById('rjError').textContent = data.detail || 'Reject failed';
+      document.getElementById('rjError').classList.remove('hidden');
+      btn.disabled = false; btn.textContent = 'Reject';
+    }
+  } catch { btn.disabled = false; btn.textContent = 'Reject'; }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────
+function toast(msg, color='green') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl text-sm shadow-2xl font-medium transition-all ${
+    color==='green' ? 'bg-green-700 text-white' :
+    color==='red'   ? 'bg-red-700 text-white'   :
+    'bg-gray-700 text-white'}`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function errRow(cols, msg) {
+  return `<tr><td colspan="${cols}" class="px-4 py-10 text-center text-gray-500 text-sm">${msg}</td></tr>`;
+}
+</script>
+</body>
+</html>

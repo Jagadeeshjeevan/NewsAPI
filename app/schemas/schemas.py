@@ -45,6 +45,10 @@ class TimeWindow(str, Enum):
 
 # ── Auth ───────────────────────────────────────────────────────────────────
 
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
+
 class GuestLoginRequest(BaseModel):
     device_id: str
     device_type: DeviceType = DeviceType.ANDROID
@@ -228,9 +232,13 @@ class AdminQueueItem(BaseModel):
 class ApproveRequest(BaseModel):
     is_breaking: bool = False
     use_ai_rewrite: bool = True
+    state: Optional[str] = None
+    district: Optional[str] = None
+    city: Optional[str] = None
 
 class RejectRequest(BaseModel):
     reason: Optional[str] = None
+    state: Optional[str] = None
 
 class AdminEditRequest(BaseModel):
     title: Optional[str] = None

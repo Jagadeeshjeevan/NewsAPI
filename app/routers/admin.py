@@ -1,5 +1,6 @@
+import os
 from datetime import datetime
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, send_from_directory
 from sqlalchemy import func
 from app.core.database import get_db
 from app.core import redis as cache_store
@@ -14,6 +15,12 @@ from app.services.ai_service import task_process_approved_news
 from app.services.notify_service import send_admin_blast
 
 bp = Blueprint("admin", __name__)
+
+_HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+@bp.get("/panel")
+def admin_panel():
+    return send_from_directory(_HERE, "admin_panel.html")
 
 
 # API 14: GET /admin/queue
@@ -75,6 +82,12 @@ def approve(raw_id):
     raw.status = "approved"
     raw.reviewed_by = g.current_user.id
     raw.reviewed_at = datetime.utcnow()
+    if body.state is not None:
+        raw.state = body.state
+    if body.district is not None:
+        raw.district = body.district
+    if body.city is not None:
+        raw.city = body.city
     db.commit()
     cache_store.cache_delete_pattern("feed:*")
     task_process_approved_news.delay(raw_id, body.is_breaking, body.use_ai_rewrite)
@@ -99,6 +112,8 @@ def reject(raw_id):
     raw.rejection_reason = body.reason
     raw.reviewed_by = g.current_user.id
     raw.reviewed_at = datetime.utcnow()
+    if body.state is not None:
+        raw.state = body.state
     db.commit()
     return jsonify({"message": "Article rejected", "raw_id": raw_id})
 
