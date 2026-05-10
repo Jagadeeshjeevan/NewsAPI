@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.models.models import News, Category, Language, User
+from app.models.models import News, Category, Language, User, NewsReaction
 from app.core import redis as cache_store
 
 WINDOW_TTL = {"latest": 30, "today": 120, "yesterday": 600, "older": 600}
@@ -28,7 +28,9 @@ def get_feed(db: Session, user: User | None, language: str, window: str, last_id
         user.anchor_time = datetime.utcnow()
         db.commit()
 
-    cache_key = f"feed:{language}:{window}:{category}:{city}:{state}:{last_id}:{limit}"
+    # Registered users get a user-scoped cache so my_reaction is never stale.
+    user_key = str(user.id) if (user and user.user_type == "registered") else "anon"
+    cache_key = f"feed:{language}:{window}:{category}:{city}:{state}:{last_id}:{limit}:{user_key}"
     cached = cache_store.cache_get(cache_key)
     if cached:
         return cached
@@ -71,7 +73,17 @@ def get_feed(db: Session, user: User | None, language: str, window: str, last_id
     has_more = len(rows) > limit
     rows = rows[:limit]
 
-    data = [_row_to_card(n, cat, lang) for n, cat, lang in rows]
+    # Fetch this user's reactions in one query for the whole page.
+    reactions: dict[int, str] = {}
+    if user and user.user_type == "registered" and rows:
+        article_ids = [n.id for n, _, _ in rows]
+        for r in db.query(NewsReaction).filter(
+            NewsReaction.user_id == user.id,
+            NewsReaction.news_id.in_(article_ids),
+        ).all():
+            reactions[r.news_id] = r.reaction
+
+    data = [_row_to_card(n, cat, lang, reactions.get(n.id)) for n, cat, lang in rows]
     next_cursor = data[-1]["id"] if data and has_more else None
 
     result = {
@@ -150,7 +162,8 @@ def search_news(db: Session, q: str, language: str, category: str | None, page: 
     return {"query": q, "total": total, "page": page, "data": [_row_to_card(n, cat, lang) for n, cat, lang in rows]}
 
 
-def _row_to_card(n: News, cat: Category | None, lang: Language | None) -> dict:
+def _row_to_card(n: News, cat: Category | None, lang: Language | None,
+                 my_reaction: str | None = None) -> dict:
     return {
         "id": n.id,
         "language_code": n.language_code,
@@ -170,4 +183,5 @@ def _row_to_card(n: News, cat: Category | None, lang: Language | None) -> dict:
         "like_count": n.like_count,
         "dislike_count": n.dislike_count,
         "published_at": n.published_at.isoformat(),
+        "my_reaction": my_reaction,
     }
