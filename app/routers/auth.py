@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token, decode_token, hash_token
 from app.dependencies.auth import auth_required
 from app.models.models import RefreshToken, User
-from app.schemas.schemas import AdminLoginRequest, GuestLoginRequest, GoogleLoginRequest, RefreshTokenRequest, LogoutRequest
+from app.schemas.schemas import AdminLoginRequest, GuestLoginRequest, GoogleLoginRequest, RefreshTokenRequest, LogoutRequest, RegisterRequest, LoginRequest
 from app.services import auth_service
 
 bp = Blueprint("auth", __name__)
@@ -37,6 +37,68 @@ def admin_login():
     token = create_access_token(user.id, user.user_type)
     return jsonify({"access_token": token, "token_type": "bearer",
                     "user_id": user.id, "name": user.name or user.email})
+
+
+# API: POST /auth/register
+@bp.post("/register")
+def register():
+    data = request.get_json(force=True) or {}
+    try:
+        body = RegisterRequest(**data)
+    except Exception as e:
+        return jsonify({"detail": str(e)}), 422
+
+    db = get_db()
+    existing = db.query(User).filter(User.email == body.email.strip().lower()).first()
+    if existing:
+        return jsonify({"detail": "Email already registered"}), 409
+
+    pw_hash = hashlib.sha256(body.password.encode()).hexdigest()
+    user = User(
+        user_type="registered",
+        email=body.email.strip().lower(),
+        name=body.name.strip(),
+        password_hash=pw_hash,
+        last_login=datetime.utcnow(),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(user.id, user.user_type)
+    return jsonify({
+        "access_token": token, "token_type": "bearer",
+        "user_id": user.id, "user_type": user.user_type,
+        "name": user.name, "email": user.email,
+    }), 201
+
+
+# API: POST /auth/login
+@bp.post("/login")
+def login():
+    data = request.get_json(force=True) or {}
+    try:
+        body = LoginRequest(**data)
+    except Exception as e:
+        return jsonify({"detail": str(e)}), 422
+
+    db = get_db()
+    pw_hash = hashlib.sha256(body.password.encode()).hexdigest()
+    user = db.query(User).filter(
+        User.email == body.email.strip().lower(),
+        User.password_hash == pw_hash,
+        User.is_active == 1,
+    ).first()
+    if not user:
+        return jsonify({"detail": "Invalid email or password"}), 401
+
+    user.last_login = datetime.utcnow()
+    db.commit()
+    token = create_access_token(user.id, user.user_type)
+    return jsonify({
+        "access_token": token, "token_type": "bearer",
+        "user_id": user.id, "user_type": user.user_type,
+        "name": user.name, "email": user.email,
+    })
 
 
 # API 1: POST /auth/guest

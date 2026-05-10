@@ -49,6 +49,15 @@ class AdminLoginRequest(BaseModel):
     email: str
     password: str
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 class GuestLoginRequest(BaseModel):
     device_id: str
     device_type: DeviceType = DeviceType.ANDROID
