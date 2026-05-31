@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.models.models import News, Category, Language, User, NewsReaction
@@ -6,9 +6,17 @@ from app.core import redis as cache_store
 
 WINDOW_TTL = {"latest": 30, "today": 120, "yesterday": 600, "older": 600}
 
+# DB stores datetimes in IST (UTC+5:30); use the same offset for window bounds.
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _now_ist() -> datetime:
+    """Return current time in IST as a naive datetime (no tzinfo), matching DB storage."""
+    return datetime.now(_IST).replace(tzinfo=None)
+
 
 def _get_window_bounds(user: User | None, window: str) -> tuple[datetime, datetime]:
-    now = datetime.utcnow()
+    now = _now_ist()
     anchor = (user.anchor_time if user else None) or now
     bounds = {
         "latest":    (now - timedelta(hours=24), now),
@@ -25,7 +33,7 @@ def get_feed(db: Session, user: User | None, language: str, window: str, last_id
              national: bool | None, breaking: bool | None) -> dict:
 
     if user and not user.anchor_time:
-        user.anchor_time = datetime.utcnow()
+        user.anchor_time = _now_ist()
         db.commit()
 
     # Registered users get a user-scoped cache so my_reaction is never stale.
@@ -73,6 +81,23 @@ def get_feed(db: Session, user: User | None, language: str, window: str, last_id
     has_more = len(rows) > limit
     rows = rows[:limit]
 
+    # Fallback: if the requested window returned nothing, serve the 10 most
+    # recently published articles for this language so the client never sees
+    # an empty feed.
+    fallback_used = False
+    if not rows and not last_id and not after_id:
+        fallback_q = (
+            db.query(News, Category, Language)
+            .outerjoin(Category, News.category_code == Category.code)
+            .outerjoin(Language, News.language_code == Language.code)
+            .filter(News.language_code == language)
+        )
+        if category:
+            fallback_q = fallback_q.filter(News.category_code == category)
+        rows = fallback_q.order_by(News.published_at.desc()).limit(10).all()
+        has_more = False
+        fallback_used = True
+
     # Fetch this user's reactions in one query for the whole page.
     reactions: dict[int, str] = {}
     if user and user.user_type == "registered" and rows:
@@ -90,6 +115,7 @@ def get_feed(db: Session, user: User | None, language: str, window: str, last_id
         "window": window,
         "window_start": window_start.isoformat(),
         "window_end": window_end.isoformat(),
+        "fallback": fallback_used,
         "next_cursor": next_cursor,
         "has_more": has_more,
         "count": len(data),
@@ -123,7 +149,7 @@ def get_article(db: Session, news_id: int) -> dict | None:
 
 
 def get_trending(db: Session, language: str, city: str | None, limit: int, hours: int) -> list:
-    since = datetime.utcnow() - timedelta(hours=hours)
+    since = _now_ist() - timedelta(hours=hours)
     q = db.query(News, Category, Language).outerjoin(
         Category, News.category_code == Category.code
     ).outerjoin(Language, News.language_code == Language.code).filter(
@@ -147,7 +173,7 @@ def get_breaking(db: Session, language: str, limit: int) -> list:
 
 
 def search_news(db: Session, q: str, language: str, category: str | None, page: int, limit: int) -> dict:
-    since = datetime.utcnow() - timedelta(days=30)
+    since = _now_ist() - timedelta(days=30)
     base = db.query(News, Category, Language).outerjoin(
         Category, News.category_code == Category.code
     ).outerjoin(Language, News.language_code == Language.code).filter(

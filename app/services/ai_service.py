@@ -1,7 +1,13 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from app.core.celery_app import celery_app
 from app.core.config import settings
+
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _now_ist() -> datetime:
+    return datetime.now(_IST).replace(tzinfo=None)
 
 
 @celery_app.task(name="app.services.ai_service.task_process_approved_news")
@@ -54,7 +60,7 @@ def task_process_approved_news(raw_id: int, is_breaking: bool = False, use_ai_re
                 district=raw.district,
                 city=raw.city,
                 is_breaking=1 if is_breaking else 0,
-                published_at=datetime.utcnow(),
+                published_at=_now_ist(),
             )
             db.add(news)
             db.flush()
