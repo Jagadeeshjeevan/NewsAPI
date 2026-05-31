@@ -276,10 +276,13 @@ class AdminPushRequest(BaseModel):
     news_id: Optional[int] = None
 
 
-# ── Reactions / Bookmarks ──────────────────────────────────────────────────
+# ── Reactions / Bookmarks / Comments ──────────────────────────────────────
 
 class ReactRequest(BaseModel):
     reaction: ReactionType
+
+class CommentRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
 
 class ReactResponse(BaseModel):
     action: str

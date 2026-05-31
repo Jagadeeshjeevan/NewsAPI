@@ -3,7 +3,8 @@ from datetime import datetime, date
 from flask import Flask
 from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
-from app.core.database import close_db
+from app.core.database import close_db, engine
+from app.models.models import NewsComment
 from app.core.logger import init_logging
 from app.routers import auth, users, news, feeds, audio, admin, subscriptions, reference, docs
 
@@ -23,6 +24,7 @@ app.json = JsonProvider(app)
 
 CORS(app, resources={r"/*": {"origins": "*"}})
 app.teardown_appcontext(close_db)
+NewsComment.__table__.create(engine, checkfirst=True)
 init_logging(app)
 
 app.register_blueprint(auth.bp,          url_prefix="/auth")

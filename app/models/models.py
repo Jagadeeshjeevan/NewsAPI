@@ -172,6 +172,17 @@ class NewsReaction(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class NewsComment(Base):
+    __tablename__ = "news_comments"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    news_id = Column(BigInteger, nullable=False, index=True)
+    user_id = Column(BigInteger, nullable=False)
+    user_name = Column(String(100), nullable=False)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Subscription(Base):
     __tablename__ = "subscriptions"
 

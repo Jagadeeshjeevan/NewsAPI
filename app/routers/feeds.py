@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify, g
 from app.core.database import get_db
 from app.dependencies.auth import _get_current_user, registered_required
-from app.models.models import News, NewsReaction, Bookmark, UserReadHistory
+from app.models.models import News, NewsReaction, Bookmark, UserReadHistory, NewsComment
 from app.services import feed_service
-from app.schemas.schemas import ReactRequest
+from app.schemas.schemas import ReactRequest, CommentRequest
 
 bp = Blueprint("feeds", __name__)
 
@@ -244,3 +244,51 @@ def remove_bookmark(news_id):
     ).delete()
     db.commit()
     return jsonify({"message": "Bookmark removed"})
+
+
+# API: GET /feeds/<id>/comments
+@bp.get("/<int:news_id>/comments")
+def get_comments(news_id):
+    db = get_db()
+    page = int(request.args.get("page", 1))
+    limit = min(int(request.args.get("limit", 20)), 50)
+    total = db.query(NewsComment).filter(NewsComment.news_id == news_id).count()
+    rows = (
+        db.query(NewsComment)
+        .filter(NewsComment.news_id == news_id)
+        .order_by(NewsComment.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
+    data = [
+        {"id": c.id, "user_name": c.user_name, "text": c.text,
+         "created_at": c.created_at.isoformat()}
+        for c in rows
+    ]
+    return jsonify({"total": total, "page": page, "data": data})
+
+
+# API: POST /feeds/<id>/comments
+@bp.post("/<int:news_id>/comments")
+@registered_required
+def add_comment(news_id):
+    db = get_db()
+    data = request.get_json(force=True) or {}
+    try:
+        body = CommentRequest(**data)
+    except Exception as e:
+        return jsonify({"detail": str(e)}), 422
+    comment = NewsComment(
+        news_id=news_id,
+        user_id=g.current_user.id,
+        user_name=g.current_user.name or g.current_user.email or "User",
+        text=body.text.strip(),
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return jsonify({
+        "id": comment.id, "user_name": comment.user_name,
+        "text": comment.text, "created_at": comment.created_at.isoformat(),
+    }), 201
